@@ -1,0 +1,114 @@
+\documentclass[\VAR{font_size}pt]{article}
+
+\usepackage[a4paper, margin=1.5cm]{geometry}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{lmodern}
+\usepackage{enumitem}
+\usepackage{titlesec}
+\usepackage{hyperref}
+\usepackage{graphicx}
+\usepackage{xcolor}
+
+% Colors
+\definecolor{headercolor}{RGB}{37, 99, 235}
+\definecolor{rulecolor}{RGB}{200, 200, 200}
+
+% Section formatting
+\titleformat{\section}{\large\bfseries\color{headercolor}}{}{0em}{}[\titlerule]
+\titlespacing{\section}{0pt}{12pt}{6pt}
+
+% Remove page numbers
+\pagestyle{empty}
+
+% Compact lists
+\setlist[itemize]{nosep, left=0pt, label=\textbullet}
+
+\begin{document}
+
+% ── Header ──
+\begin{center}
+    {\LARGE\bfseries \VAR{profile.first_name} \VAR{profile.last_name}}\\[4pt]
+    \BLOCK{if profile.email_contact}\VAR{profile.email_contact}\BLOCK{endif}%
+    \BLOCK{if profile.phone} \textbar\ \VAR{profile.phone}\BLOCK{endif}%
+    \BLOCK{if profile.address} \textbar\ \VAR{profile.address}\BLOCK{endif}\\
+    \BLOCK{if profile.linkedin}\href{\VAR{profile.linkedin}}{LinkedIn}\BLOCK{endif}%
+    \BLOCK{if profile.website} \textbar\ \href{\VAR{profile.website}}{Website}\BLOCK{endif}
+\end{center}
+
+% ── Professional Summary ──
+\BLOCK{if blurbs.professional_summary}
+\section{Professional Summary}
+\BLOCK{for text in blurbs.professional_summary}
+\VAR{text}
+\BLOCK{endfor}
+\BLOCK{endif}
+
+% ── Work Experience ──
+\BLOCK{if work}
+\section{Work Experience}
+\BLOCK{for job in work}
+\textbf{\VAR{job.title}} \hfill \VAR{job.start_date} -- \VAR{job.end_date}\\
+\textit{\VAR{job.organization}}\\[2pt]
+\BLOCK{if job.description}
+\VAR{job.description}\\[2pt]
+\BLOCK{endif}
+\BLOCK{endfor}
+
+\BLOCK{if blurbs.work_highlights}
+\begin{itemize}
+\BLOCK{for text in blurbs.work_highlights}
+    \item \VAR{text}
+\BLOCK{endfor}
+\end{itemize}
+\BLOCK{endif}
+\BLOCK{endif}
+
+% ── Education ──
+\BLOCK{if education}
+\section{Education}
+\BLOCK{for edu in education}
+\textbf{\VAR{edu.title}} \hfill \VAR{edu.start_date} -- \VAR{edu.end_date}\\
+\textit{\VAR{edu.organization}}\\[2pt]
+\BLOCK{if edu.description}
+\VAR{edu.description}\\[2pt]
+\BLOCK{endif}
+\BLOCK{endfor}
+\BLOCK{endif}
+
+% ── Projects ──
+\BLOCK{if projects}
+\section{Projects}
+\BLOCK{for proj in projects}
+\textbf{\VAR{proj.title}}\\[2pt]
+\BLOCK{if proj.description}
+\VAR{proj.description}\\[2pt]
+\BLOCK{endif}
+\BLOCK{endfor}
+
+\BLOCK{if blurbs.project_descriptions}
+\begin{itemize}
+\BLOCK{for text in blurbs.project_descriptions}
+    \item \VAR{text}
+\BLOCK{endfor}
+\end{itemize}
+\BLOCK{endif}
+\BLOCK{endif}
+
+% ── Skills ──
+\BLOCK{if blurbs.skills_summary}
+\section{Skills}
+\BLOCK{for text in blurbs.skills_summary}
+\VAR{text}
+\BLOCK{endfor}
+\BLOCK{endif}
+
+% ── Hobbies ──
+\BLOCK{if hobbies}
+\section{Interests \& Hobbies}
+\BLOCK{for hobby in hobbies}
+\textbf{\VAR{hobby.title}}\BLOCK{if hobby.description}: \VAR{hobby.description}\BLOCK{endif}\\[2pt]
+\BLOCK{endfor}
+\BLOCK{endif}
+
+\end{document}

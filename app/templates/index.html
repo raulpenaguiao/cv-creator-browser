@@ -1,0 +1,603 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="csrf-token" content="{{ csrf_token() }}">
+    <title>CV Creator</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}">
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    <script src="{{ url_for('static', filename='js/api.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/app.js') }}"></script>
+</head>
+<body x-data x-init="$store.auth.checkSession()">
+
+    <!-- ── Toast Notifications ── -->
+    <div class="toast-container">
+        <template x-for="msg in $store.toast.messages" :key="msg.id">
+            <div class="toast" :class="'toast-' + msg.type" x-text="msg.text"></div>
+        </template>
+    </div>
+
+    <!-- ── Login Modal ── -->
+    <template x-if="$store.auth.showLogin && !$store.auth.authenticated">
+        <div class="modal-overlay">
+            <div class="modal" x-data="{ username: '', password: '' }">
+                <h2>Sign In</h2>
+                <form @submit.prevent="$store.auth.login(username, password)">
+                    <div class="form-group">
+                        <label for="login-user">Username</label>
+                        <input id="login-user" type="text" x-model="username" required autocomplete="username">
+                    </div>
+                    <div class="form-group">
+                        <label for="login-pass">Password</label>
+                        <input id="login-pass" type="password" x-model="password" required autocomplete="current-password">
+                    </div>
+                    <button type="submit" class="btn btn-primary" style="width:100%" :disabled="$store.auth.loading">
+                        <template x-if="$store.auth.loading"><span class="spinner"></span></template>
+                        Sign In
+                    </button>
+                </form>
+                <div class="modal-footer">
+                    <span class="modal-link" @click="$store.auth.showLogin = false; $store.auth.showRegister = true">Create account</span>
+                    <span class="modal-link" @click="$store.auth.showLogin = false; $store.auth.showReset = true">Forgot password?</span>
+                </div>
+            </div>
+        </div>
+    </template>
+
+    <!-- ── Register Modal ── -->
+    <template x-if="$store.auth.showRegister && !$store.auth.authenticated">
+        <div class="modal-overlay">
+            <div class="modal" x-data="{ username: '', email: '' }">
+                <h2>Create Account</h2>
+                <form @submit.prevent="$store.auth.register(username, email)">
+                    <div class="form-group">
+                        <label for="reg-user">Username</label>
+                        <input id="reg-user" type="text" x-model="username" required minlength="3" autocomplete="username">
+                    </div>
+                    <div class="form-group">
+                        <label for="reg-email">Email</label>
+                        <input id="reg-email" type="email" x-model="email" required autocomplete="email">
+                    </div>
+                    <button type="submit" class="btn btn-primary" style="width:100%" :disabled="$store.auth.loading">
+                        <template x-if="$store.auth.loading"><span class="spinner"></span></template>
+                        Register
+                    </button>
+                </form>
+                <div class="modal-footer">
+                    <span class="modal-link" @click="$store.auth.showRegister = false; $store.auth.showLogin = true">Back to sign in</span>
+                </div>
+            </div>
+        </div>
+    </template>
+
+    <!-- ── Password Display Modal ── -->
+    <template x-if="$store.auth.showPassword">
+        <div class="modal-overlay">
+            <div class="modal">
+                <h2>Your Password</h2>
+                <div class="password-display">
+                    <p>Your auto-generated password is:</p>
+                    <div class="password-value" x-text="$store.auth.generatedPassword"></div>
+                    <p class="warning">Save this now! It will not be shown again.</p>
+                </div>
+                <div class="btn-group" style="justify-content: center">
+                    <button class="btn btn-primary" @click="$store.auth.copyPassword()">Copy to Clipboard</button>
+                    <button class="btn btn-outline" @click="$store.auth.dismissPassword()">I've Saved It</button>
+                </div>
+            </div>
+        </div>
+    </template>
+
+    <!-- ── Reset Password Modal ── -->
+    <template x-if="$store.auth.showReset && !$store.auth.authenticated">
+        <div class="modal-overlay">
+            <div class="modal" x-data="{ email: '' }">
+                <h2>Reset Password</h2>
+                <form @submit.prevent="$store.auth.resetRequest(email)">
+                    <div class="form-group">
+                        <label for="reset-email">Email</label>
+                        <input id="reset-email" type="email" x-model="email" required>
+                    </div>
+                    <button type="submit" class="btn btn-primary" style="width:100%" :disabled="$store.auth.loading">
+                        <template x-if="$store.auth.loading"><span class="spinner"></span></template>
+                        Send Reset Link
+                    </button>
+                </form>
+                <div class="modal-footer">
+                    <span class="modal-link" @click="$store.auth.showReset = false; $store.auth.showLogin = true">Back to sign in</span>
+                </div>
+            </div>
+        </div>
+    </template>
+
+    <!-- ── Main App (shown when authenticated) ── -->
+    <template x-if="$store.auth.authenticated">
+        <div>
+            <!-- Header -->
+            <header class="app-header">
+                <h1>CV Creator</h1>
+                <div class="user-info">
+                    <span x-text="$store.auth.user.username"></span>
+                    <button class="btn btn-outline btn-sm" @click="$store.auth.logout()">Sign Out</button>
+                </div>
+            </header>
+
+            <div class="app-container">
+                <!-- Tab Navigation -->
+                <nav class="tab-nav">
+                    <template x-for="tab in $store.nav.tabs" :key="tab.id">
+                        <button class="tab-btn"
+                                :class="{ active: $store.nav.current === tab.id }"
+                                @click="$store.nav.setTab(tab.id)"
+                                x-text="tab.label"></button>
+                    </template>
+                </nav>
+
+                <!-- ── About You Tab ── -->
+                <div x-show="$store.nav.current === 'about'" x-data="aboutTab()" x-init="init()">
+                    <div class="tab-content">
+                        <h2 class="mb-2">About You</h2>
+                        <form @submit.prevent="saveProfile()">
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label>First Name</label>
+                                    <input type="text" x-model="profile.first_name">
+                                </div>
+                                <div class="form-group">
+                                    <label>Last Name</label>
+                                    <input type="text" x-model="profile.last_name">
+                                </div>
+                            </div>
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label>Contact Email</label>
+                                    <input type="email" x-model="profile.email_contact">
+                                </div>
+                                <div class="form-group">
+                                    <label>Phone</label>
+                                    <input type="tel" x-model="profile.phone">
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <label>Address</label>
+                                <input type="text" x-model="profile.address">
+                            </div>
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label>LinkedIn</label>
+                                    <input type="url" x-model="profile.linkedin">
+                                </div>
+                                <div class="form-group">
+                                    <label>Website</label>
+                                    <input type="url" x-model="profile.website">
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <label>Bio</label>
+                                <textarea x-model="profile.bio" rows="4"></textarea>
+                            </div>
+                            <button type="submit" class="btn btn-primary" :disabled="loading">
+                                <template x-if="loading"><span class="spinner"></span></template>
+                                Save Profile
+                            </button>
+                        </form>
+
+                        <!-- Photos -->
+                        <h3 class="mt-2 mb-1">Photos</h3>
+                        <div>
+                            <label class="btn btn-outline" :class="{ 'btn-disabled': photoUploading }">
+                                <template x-if="photoUploading"><span class="spinner spinner-dark"></span></template>
+                                Upload Photo
+                                <input type="file" accept="image/*" @change="uploadPhoto($event)" hidden>
+                            </label>
+                        </div>
+                        <div class="photo-grid">
+                            <template x-for="photo in photos" :key="photo.id">
+                                <div class="photo-card" :class="{ primary: photo.is_primary }">
+                                    <img :src="photoUrl(photo.id)" :alt="photo.filename">
+                                    <div class="photo-actions">
+                                        <button @click="setPrimary(photo.id)" title="Set as primary">&#9733;</button>
+                                        <button @click="deletePhoto(photo.id)" title="Delete">&#10005;</button>
+                                    </div>
+                                </div>
+                            </template>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ── My Life Tab ── -->
+                <div x-show="$store.nav.current === 'life'" x-data="lifeTab()" x-init="init()">
+                    <div class="tab-content">
+                        <div class="flex justify-between items-center mb-2">
+                            <h2>My Life</h2>
+                            <button class="btn btn-primary btn-sm" @click="showForm = true; editing = null; form = { category: 'work', title: '', organization: '', start_date: '', end_date: '', description: '', keywords: '' }">+ Add</button>
+                        </div>
+
+                        <div class="filter-bar">
+                            <button class="filter-btn" :class="{ active: filter === 'all' }" @click="filter = 'all'">All</button>
+                            <button class="filter-btn" :class="{ active: filter === 'work' }" @click="filter = 'work'">Work</button>
+                            <button class="filter-btn" :class="{ active: filter === 'education' }" @click="filter = 'education'">Education</button>
+                            <button class="filter-btn" :class="{ active: filter === 'hobby' }" @click="filter = 'hobby'">Hobby</button>
+                        </div>
+
+                        <!-- Add/Edit Form -->
+                        <template x-if="showForm">
+                            <div class="card mb-2">
+                                <form @submit.prevent="save()">
+                                    <div class="form-row">
+                                        <div class="form-group">
+                                            <label>Category</label>
+                                            <select x-model="form.category">
+                                                <option value="work">Work</option>
+                                                <option value="education">Education</option>
+                                                <option value="hobby">Hobby</option>
+                                            </select>
+                                        </div>
+                                        <div class="form-group">
+                                            <label>Title</label>
+                                            <input type="text" x-model="form.title" required>
+                                        </div>
+                                    </div>
+                                    <div class="form-group">
+                                        <label>Organization</label>
+                                        <input type="text" x-model="form.organization">
+                                    </div>
+                                    <div class="form-row">
+                                        <div class="form-group">
+                                            <label>Start Date</label>
+                                            <input type="text" x-model="form.start_date" placeholder="e.g. Jan 2020">
+                                        </div>
+                                        <div class="form-group">
+                                            <label>End Date</label>
+                                            <input type="text" x-model="form.end_date" placeholder="e.g. Present">
+                                        </div>
+                                    </div>
+                                    <div class="form-group">
+                                        <label>Description</label>
+                                        <textarea x-model="form.description" rows="3"></textarea>
+                                    </div>
+                                    <div class="form-group">
+                                        <label>Keywords (comma-separated)</label>
+                                        <input type="text" x-model="form.keywords" placeholder="python, flask, web development">
+                                    </div>
+                                    <div class="btn-group">
+                                        <button type="submit" class="btn btn-primary" :disabled="loading">
+                                            <template x-if="loading"><span class="spinner"></span></template>
+                                            <span x-text="editing ? 'Update' : 'Add'"></span>
+                                        </button>
+                                        <button type="button" class="btn btn-outline" @click="resetForm()">Cancel</button>
+                                    </div>
+                                </form>
+                            </div>
+                        </template>
+
+                        <!-- Experience List -->
+                        <template x-if="filtered.length === 0 && !showForm">
+                            <div class="empty-state">
+                                <p>No experiences yet. Click "+ Add" to add your first one.</p>
+                            </div>
+                        </template>
+
+                        <template x-for="exp in filtered" :key="exp.id">
+                            <div class="card">
+                                <div class="card-header">
+                                    <div>
+                                        <h3 x-text="exp.title"></h3>
+                                        <div class="card-meta">
+                                            <span class="tag" x-text="exp.category"></span>
+                                            <template x-if="exp.organization">
+                                                <span x-text="exp.organization"></span>
+                                            </template>
+                                            <template x-if="exp.start_date">
+                                                <span> &middot; <span x-text="exp.start_date"></span> - <span x-text="exp.end_date || 'Present'"></span></span>
+                                            </template>
+                                        </div>
+                                    </div>
+                                    <div class="card-actions">
+                                        <button class="btn-icon" @click="editExperience(exp)" title="Edit">&#9998;</button>
+                                        <button class="btn-icon" @click="deleteExperience(exp.id)" title="Delete">&#10005;</button>
+                                    </div>
+                                </div>
+                                <template x-if="exp.description">
+                                    <div class="card-body text-sm" x-text="exp.description"></div>
+                                </template>
+                                <template x-if="exp.keywords">
+                                    <div class="mt-1">
+                                        <template x-for="kw in exp.keywords.split(',').filter(k => k.trim())" :key="kw">
+                                            <span class="tag" x-text="kw.trim()"></span>
+                                        </template>
+                                    </div>
+                                </template>
+                            </div>
+                        </template>
+                    </div>
+                </div>
+
+                <!-- ── Projects Tab ── -->
+                <div x-show="$store.nav.current === 'projects'" x-data="projectsTab()" x-init="init()">
+                    <div class="tab-content">
+                        <div class="flex justify-between items-center mb-2">
+                            <h2>Projects</h2>
+                            <button class="btn btn-primary btn-sm" @click="showForm = true; editing = null; form = { title: '', description: '', keywords: '' }">+ Add</button>
+                        </div>
+
+                        <template x-if="showForm">
+                            <div class="card mb-2">
+                                <form @submit.prevent="save()">
+                                    <div class="form-group">
+                                        <label>Title</label>
+                                        <input type="text" x-model="form.title" required>
+                                    </div>
+                                    <div class="form-group">
+                                        <label>Description</label>
+                                        <textarea x-model="form.description" rows="3"></textarea>
+                                    </div>
+                                    <div class="form-group">
+                                        <label>Keywords (comma-separated)</label>
+                                        <input type="text" x-model="form.keywords" placeholder="react, typescript, api">
+                                    </div>
+                                    <div class="btn-group">
+                                        <button type="submit" class="btn btn-primary" :disabled="loading">
+                                            <template x-if="loading"><span class="spinner"></span></template>
+                                            <span x-text="editing ? 'Update' : 'Add'"></span>
+                                        </button>
+                                        <button type="button" class="btn btn-outline" @click="resetForm()">Cancel</button>
+                                    </div>
+                                </form>
+                            </div>
+                        </template>
+
+                        <template x-if="projects.length === 0 && !showForm">
+                            <div class="empty-state">
+                                <p>No projects yet. Click "+ Add" to add your first project.</p>
+                            </div>
+                        </template>
+
+                        <template x-for="proj in projects" :key="proj.id">
+                            <div class="card">
+                                <div class="card-header">
+                                    <h3 x-text="proj.title"></h3>
+                                    <div class="card-actions">
+                                        <button class="btn-icon" @click="editProject(proj)" title="Edit">&#9998;</button>
+                                        <button class="btn-icon" @click="deleteProject(proj.id)" title="Delete">&#10005;</button>
+                                    </div>
+                                </div>
+                                <template x-if="proj.description">
+                                    <div class="card-body text-sm" x-text="proj.description"></div>
+                                </template>
+                                <template x-if="proj.keywords">
+                                    <div class="mt-1">
+                                        <template x-for="kw in proj.keywords.split(',').filter(k => k.trim())" :key="kw">
+                                            <span class="tag" x-text="kw.trim()"></span>
+                                        </template>
+                                    </div>
+                                </template>
+                            </div>
+                        </template>
+                    </div>
+                </div>
+
+                <!-- ── Job Discussion Tab ── -->
+                <div x-show="$store.nav.current === 'job'" x-data="jobTab()" x-init="init()">
+                    <div class="tab-content">
+                        <h2 class="mb-2">Job Discussion</h2>
+
+                        <div class="form-group">
+                            <label>Paste a job description to analyze</label>
+                            <textarea x-model="jobDescription" rows="6" placeholder="Paste the full job description here..."></textarea>
+                        </div>
+                        <button class="btn btn-primary mb-2" @click="analyze()" :disabled="analyzing">
+                            <template x-if="analyzing"><span class="spinner"></span></template>
+                            Analyze Job
+                        </button>
+
+                        <template x-if="analyses.length === 0">
+                            <div class="empty-state">
+                                <p>No analyses yet. Paste a job description above and click "Analyze Job".</p>
+                            </div>
+                        </template>
+
+                        <template x-for="analysis in analyses" :key="analysis.id">
+                            <div class="analysis-card" :class="{ active: analysis.is_active }">
+                                <div class="card-header">
+                                    <div>
+                                        <span class="text-sm text-muted" x-text="analysis.created_at"></span>
+                                        <template x-if="analysis.is_active">
+                                            <span class="tag" style="background: #dcfce7; color: #166534; border-color: #86efac">Active</span>
+                                        </template>
+                                    </div>
+                                    <div class="card-actions">
+                                        <template x-if="!analysis.is_active">
+                                            <button class="btn btn-sm btn-success" @click="activate(analysis.id)">Activate</button>
+                                        </template>
+                                        <button class="btn-icon" @click="deleteAnalysis(analysis.id)" title="Delete">&#10005;</button>
+                                    </div>
+                                </div>
+
+                                <details class="mt-1">
+                                    <summary class="text-sm" style="cursor:pointer">Job Description</summary>
+                                    <p class="text-sm mt-1" style="white-space: pre-wrap" x-text="analysis.job_description"></p>
+                                </details>
+
+                                <template x-if="parseJSON(analysis.extracted_keywords).length > 0">
+                                    <div class="mt-1">
+                                        <strong class="text-sm">Keywords:</strong>
+                                        <div class="keyword-list">
+                                            <template x-for="kw in parseJSON(analysis.extracted_keywords)" :key="kw">
+                                                <span class="tag" x-text="kw"></span>
+                                            </template>
+                                        </div>
+                                    </div>
+                                </template>
+
+                                <template x-if="parseJSON(analysis.focus_suggestions).length > 0">
+                                    <div class="mt-1">
+                                        <strong class="text-sm">Focus Suggestions:</strong>
+                                        <ul class="text-sm mt-1" style="padding-left: 1.25rem">
+                                            <template x-for="s in parseJSON(analysis.focus_suggestions)" :key="s">
+                                                <li x-text="s"></li>
+                                            </template>
+                                        </ul>
+                                    </div>
+                                </template>
+                            </div>
+                        </template>
+                    </div>
+                </div>
+
+                <!-- ── Blurbs Tab ── -->
+                <div x-show="$store.nav.current === 'blurbs'" x-data="blurbsTab()" x-init="init()">
+                    <div class="tab-content">
+                        <h2 class="mb-2">AI-Generated Blurbs</h2>
+
+                        <template x-if="!templateConfig">
+                            <div class="empty-state">
+                                <p>No template configuration found. Check Settings.</p>
+                            </div>
+                        </template>
+
+                        <template x-if="templateConfig">
+                            <div>
+                                <template x-for="section in blurbFields()" :key="section.key">
+                                    <div class="blurb-section">
+                                        <h3>
+                                            <span x-text="section.label || section.key"></span>
+                                            <button class="btn btn-primary btn-sm" @click="generate(section.key)" :disabled="generating[section.key]">
+                                                <template x-if="generating[section.key]"><span class="spinner"></span></template>
+                                                Generate
+                                            </button>
+                                        </h3>
+                                        <template x-if="section.prompt_context">
+                                            <p class="text-sm text-muted mb-1" x-text="section.prompt_context"></p>
+                                        </template>
+
+                                        <template x-if="getBlurbsForField(section.key).length === 0">
+                                            <p class="text-sm text-muted">No blurbs yet. Click "Generate" to create suggestions.</p>
+                                        </template>
+
+                                        <template x-for="blurb in getBlurbsForField(section.key)" :key="blurb.id">
+                                            <div class="card blurb-card" :class="statusClass(blurb.status)">
+                                                <template x-if="editingBlurb !== blurb.id">
+                                                    <div>
+                                                        <div class="blurb-text text-sm" x-text="blurb.status === 'modified' ? blurb.user_text : blurb.suggestion_text"></div>
+                                                        <div class="blurb-actions">
+                                                            <button class="btn btn-sm btn-success" @click="updateBlurb(blurb.id, 'accepted')" :disabled="blurb.status === 'accepted'" title="Accept">&#10003; Accept</button>
+                                                            <button class="btn btn-sm btn-primary" @click="startEdit(blurb)" title="Edit">&#9998; Edit</button>
+                                                            <button class="btn btn-sm btn-danger" @click="updateBlurb(blurb.id, 'rejected')" :disabled="blurb.status === 'rejected'" title="Reject">&#10005; Reject</button>
+                                                        </div>
+                                                    </div>
+                                                </template>
+                                                <template x-if="editingBlurb === blurb.id">
+                                                    <div>
+                                                        <textarea x-model="editText" rows="3" class="mb-1"></textarea>
+                                                        <div class="btn-group">
+                                                            <button class="btn btn-sm btn-primary" @click="saveEdit(blurb.id)">Save</button>
+                                                            <button class="btn btn-sm btn-outline" @click="cancelEdit()">Cancel</button>
+                                                        </div>
+                                                    </div>
+                                                </template>
+                                            </div>
+                                        </template>
+                                    </div>
+                                </template>
+                            </div>
+                        </template>
+                    </div>
+                </div>
+
+                <!-- ── Generate CV Tab ── -->
+                <div x-show="$store.nav.current === 'generate'" x-data="generateTab()">
+                    <div class="tab-content">
+                        <div class="generate-panel">
+                            <div class="icon">&#128196;</div>
+                            <h2 class="mb-2">Generate Your CV</h2>
+                            <p class="text-muted mb-2">Compile your data and accepted blurbs into a professional PDF.</p>
+
+                            <button class="btn btn-primary" @click="compile()" :disabled="compiling" style="font-size: 1rem; padding: 0.75rem 2rem">
+                                <template x-if="compiling"><span class="spinner"></span></template>
+                                Compile CV
+                            </button>
+
+                            <template x-if="error">
+                                <div class="mt-2" style="color: var(--danger)">
+                                    <p x-text="error"></p>
+                                </div>
+                            </template>
+
+                            <template x-if="compiled">
+                                <div class="mt-2">
+                                    <div class="btn-group" style="justify-content: center">
+                                        <button class="btn btn-success" @click="downloadPDF()">Download PDF</button>
+                                        <button class="btn btn-outline" @click="downloadTEX()">Download TEX</button>
+                                    </div>
+                                </div>
+                            </template>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ── Settings Tab ── -->
+                <div x-show="$store.nav.current === 'settings'" x-data="settingsTab()" x-init="init()">
+                    <div class="tab-content">
+                        <h2 class="mb-2">Settings</h2>
+
+                        <form @submit.prevent="saveSettings()">
+                            <div class="settings-section">
+                                <h3>OpenAI API Key</h3>
+                                <div class="form-group">
+                                    <label>API Key <span class="text-sm text-muted" x-show="settings.openai_api_key_set">(key is set)</span></label>
+                                    <input type="password" x-model="apiKey" placeholder="sk-...">
+                                    <p class="text-xs text-muted mt-1">Your key is encrypted at rest and never shown again.</p>
+                                </div>
+                            </div>
+
+                            <div class="settings-section">
+                                <h3>CV Preferences</h3>
+                                <div class="form-row">
+                                    <div class="form-group">
+                                        <label>Template</label>
+                                        <select x-model="settings.selected_template">
+                                            <template x-for="t in templates" :key="t.name">
+                                                <option :value="t.name" x-text="t.display_name || t.name"></option>
+                                            </template>
+                                        </select>
+                                    </div>
+                                    <div class="form-group">
+                                        <label>Sentences per field</label>
+                                        <input type="number" x-model.number="settings.sentences_per_field" min="1" max="10">
+                                    </div>
+                                </div>
+                                <div class="form-group">
+                                    <label>Font Size (pt)</label>
+                                    <input type="number" x-model.number="settings.font_size" min="8" max="14" style="max-width: 120px">
+                                </div>
+                            </div>
+
+                            <button type="submit" class="btn btn-primary" :disabled="loading">
+                                <template x-if="loading"><span class="spinner"></span></template>
+                                Save Settings
+                            </button>
+                        </form>
+
+                        <div class="settings-section mt-2">
+                            <h3>Data Management</h3>
+                            <div class="btn-group">
+                                <button class="btn btn-outline" @click="exportData()">Export Data (JSON)</button>
+                                <label class="btn btn-outline" :class="{ 'btn-disabled': importing }">
+                                    <template x-if="importing"><span class="spinner spinner-dark"></span></template>
+                                    Import Data (JSON)
+                                    <input type="file" accept=".json" @change="importData($event)" hidden>
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+            </div><!-- /app-container -->
+        </div>
+    </template>
+
+</body>
+</html>

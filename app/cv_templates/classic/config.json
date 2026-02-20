@@ -1,0 +1,77 @@
+{
+    "display_name": "Classic",
+    "description": "A clean, professional CV template with a traditional layout.",
+    "latex_compiler": "pdflatex",
+    "header_fields": [
+        "first_name", "last_name", "email_contact", "phone", "address", "linkedin", "website"
+    ],
+    "sections": [
+        {
+            "key": "professional_summary",
+            "label": "Professional Summary",
+            "type": "blurb",
+            "prompt_context": "Write a professional summary paragraph for the CV header area. Should be 2-3 sentences highlighting key qualifications and career objectives.",
+            "max_chars": 500,
+            "min_sentences": 2,
+            "max_sentences": 3
+        },
+        {
+            "key": "work_experience",
+            "label": "Work Experience",
+            "type": "data",
+            "data_source": "experiences",
+            "filter": {"category": "work"},
+            "sort": "sort_order"
+        },
+        {
+            "key": "work_highlights",
+            "label": "Work Highlights",
+            "type": "blurb",
+            "prompt_context": "Write achievement-oriented bullet points highlighting key accomplishments from work experience. Use action verbs and quantify results where possible.",
+            "max_chars": 200,
+            "min_sentences": 1,
+            "max_sentences": 2
+        },
+        {
+            "key": "education",
+            "label": "Education",
+            "type": "data",
+            "data_source": "experiences",
+            "filter": {"category": "education"},
+            "sort": "sort_order"
+        },
+        {
+            "key": "projects_section",
+            "label": "Projects",
+            "type": "data",
+            "data_source": "projects",
+            "sort": "sort_order"
+        },
+        {
+            "key": "project_descriptions",
+            "label": "Project Descriptions",
+            "type": "blurb",
+            "prompt_context": "Write concise project descriptions suitable for a CV. Focus on technologies used, your role, and outcomes.",
+            "max_chars": 300,
+            "min_sentences": 1,
+            "max_sentences": 2
+        },
+        {
+            "key": "skills_summary",
+            "label": "Skills Summary",
+            "type": "blurb",
+            "prompt_context": "Write a concise skills summary combining technical and soft skills relevant to the target role. Can be a short paragraph or comma-separated list.",
+            "max_chars": 400,
+            "min_sentences": 1,
+            "max_sentences": 3
+        },
+        {
+            "key": "hobbies",
+            "label": "Interests & Hobbies",
+            "type": "data",
+            "data_source": "experiences",
+            "filter": {"category": "hobby"},
+            "sort": "sort_order"
+        }
+    ]
+}
