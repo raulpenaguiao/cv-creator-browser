@@ -124,3 +124,7 @@ This project is licensed under the MIT License. See the [LICENSE](LICENSE) file 
 # TODO
 
 - we need a favicon
+- sanitize sql inputs (currently all parameterized, but let's be sure)
+- add more logs
+- add more tests, especially for edge cases and security
+- add a Dockerfile for easier deployment
